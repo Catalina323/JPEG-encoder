@@ -1,31 +1,35 @@
 import matplotlib.pyplot as plt
-from scipy import misc, ndimage
+from scipy import misc
+import encoding_decoding as ed
 import mse_video as mv
 
+# cerinta 1
+X = misc.ascent()
+name = "ascent"
+ed.gray_encoding(X, name)
+ed.gray_decoding(name)
 
-# sarcina 3
+
+# cerinta 2
 X = misc.face()
-prag = int(input("alegeti pragul mse: "))
+name = "face"
+ed.color_encoding(X, name)
+ed.color_decoding(name)
 
+
+# cerinta 3
+X = misc.face()
+prag = int(input("introduceti pragul mse: "))
 decoded_data, mse_opt, f = mv.find_mse(prag, X, verbose=True)
-
 plt.subplot(121).imshow(X)
-plt.subplot(121).set_title("original image")
+plt.subplot(121).set_title("Initial Image")
 plt.subplot(122).imshow(decoded_data)
-plt.subplot(122).set_title("decoded image")
+plt.subplot(122).set_title("Decoded Image")
 plt.show()
 
 
-# sarcina 4
+# cerinta 4
 video_path = "highway.mp4"
-output_folder = "frames"
-number_of_frames = 10
-encoded_frames, r, c = mv.extract_encoded_frames(video_path, output_folder, number_of_frames)
-decoded_frames = mv.decode_frames(encoded_frames, r, c)
+name = mv.video_encoding(video_path, 10)
+decoded_frames = mv.video_decoding(name)
 
-count = 1
-for decoded_frame in decoded_frames:
-    plt.imshow(decoded_frame)
-    plt.title(f"Frame {count}")
-    plt.show()
-    count += 1

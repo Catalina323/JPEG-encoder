@@ -1,7 +1,8 @@
 import encoding_decoding as ed
 import numpy as np
 import cv2
-import os
+import pickle
+
 
 # sarcina 3
 def compute_mse(X_origin, X_jpeg):
@@ -13,36 +14,33 @@ def compute_mse(X_origin, X_jpeg):
 
 
 def find_mse(prag, X, verbose=False):
-    ff = 1
+    f = 1
     add = 0.07
 
     while (True):
-        encoded_data, r, c = ed.jpeg_color_encoding(X, f=ff)
-        decoded_data = ed.jpeg_color_decoding(encoded_data, r, c)
+        encoded_data, huffman_codec, r, c = ed.jpeg_color_encoding(X, f=f)
+        decoded_data = ed.jpeg_color_decoding(encoded_data, huffman_codec, r, c)
         mse = compute_mse(X, decoded_data)
         dif = mse - prag
 
         if verbose:
-            print(f"incercam factor={ff} si obtinem mse: ", mse)
+            print(f"incercam f={f} si obtinem mse:", mse)
 
         if abs(dif) > 3:
             if dif > 0:
-                ff = ff - add
+                f -= add
                 add /= 2
             else:
-                ff = ff + add
+                f += add
                 add /= 2
         else:
             break
 
-    return decoded_data, mse, ff
+    return decoded_data, mse, f
 
 
 # sarcina 4
-def extract_encoded_frames(video_path, output_folder, n=10):
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
-
+def extract_frames(video_path, n=10):
     cap = cv2.VideoCapture(video_path)
 
     if not cap.isOpened():
@@ -50,31 +48,62 @@ def extract_encoded_frames(video_path, output_folder, n=10):
         return
 
     frames = []
+    huffman_codes = []
 
     frame_count = 0
-    for _ in range(n):
+
+    for _ in range(n):  # pentru primele n frameuri
+        # while True: # pentru tot videoul dar dureaza aproximativ 12 minute
         ret, frame = cap.read()
         if not ret:
             print("End of video.")
             break
 
-        frame_filename = os.path.join(output_folder, f"frame_{frame_count:04d}.jpg")
-        cv2.imwrite(frame_filename, frame)
-
-        encoded_frame, r, c = ed.jpeg_color_encoding(frame)
+        encoded_frame, huffman_codec, r, c = ed.jpeg_color_encoding(frame)
         frames.append(encoded_frame)
+        huffman_codes.append(huffman_codec)
+
         frame_count += 1
 
     cap.release()
 
-    return frames, r, c
+    return frames, huffman_codes, r, c, frame_count
 
-def decode_frames(encoded_frames, r, c):
+
+def video_encoding(video_path="highway.mp4", number_of_frames=10):
+    print("encoding frames...")
+
+    frames, huffman_codes, r, c, frame_count = extract_frames(video_path, number_of_frames)
+    dict_video = {
+        "r": r,
+        "c": c,
+        "frame_count": frame_count,
+        "huffman_codes": huffman_codes,
+        "data": frames
+    }
+    name = f"nr_{frame_count}_frames"
+    with open(f"{name}.bin", "wb") as file:
+        pickle.dump(dict_video, file)
+
+    print("finish encoding.")
+    return name
+
+
+def video_decoding(name):
+    print("decoding frames...")
+    with open(f"{name}.bin", "rb") as file:
+        loaded_data = pickle.load(file)
+
+    r_c = loaded_data["r"]
+    c_c = loaded_data["c"]
+    frame_count_c = loaded_data["frame_count"]
+    huffman_codes_c = loaded_data["huffman_codes"]
+    data_c = loaded_data["data"]
+
     decoded_frames = []
-    for frame in encoded_frames:
-        decoded_frame = ed.jpeg_color_decoding(frame, r, c)
+    for i in range(frame_count_c):
+        decoded_frame = ed.jpeg_color_decoding(data_c[i], huffman_codes_c[i], r_c, c_c)
         decoded_frames.append(decoded_frame)
+
+    print("finish decoding.")
     return decoded_frames
-
-
-
